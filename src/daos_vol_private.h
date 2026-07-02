@@ -115,6 +115,30 @@ typedef d_sg_list_t daos_sg_list_t;
 #define H5_DAOS_LINK_EXISTS_OUT_TYPE htri_t
 #endif
 
+/* Versioning for H5Tdecode: HDF5 2.0 dropped the bare H5Tdecode() macro's
+ * default mapping to the 1-argument H5Tdecode1(buf), remapping it to the
+ * 2-argument H5Tdecode2(buf, buf_size) instead. */
+#if H5_VERSION_GE(2, 0, 0)
+#define H5_DAOS_TDECODE(buf, buf_size) H5Tdecode2(buf, buf_size)
+#else
+#define H5_DAOS_TDECODE(buf, buf_size) H5Tdecode(buf)
+#endif
+
+/* Versioning for looking up this connector's own registered ID by class
+ * value: HDF5 2.0 removed H5VLpeek_connector_id_by_value() entirely, leaving
+ * H5VLget_connector_id_by_value() (which takes a reference on the returned
+ * ID, unlike the removed "peek" call) as the only public lookup. This is
+ * fine here since the result is cached once in the static H5_DAOS_g global
+ * for the lifetime of the process (see H5_DAOS_G_INIT below) - the extra
+ * held reference is intentional, not a leak, and if anything makes the
+ * cached ID safer against being invalidated by an unrelated unregister
+ * elsewhere. */
+#if H5_VERSION_GE(2, 0, 0)
+#define H5_DAOS_PEEK_CONNECTOR_ID_BY_VALUE(value) H5VLget_connector_id_by_value(value)
+#else
+#define H5_DAOS_PEEK_CONNECTOR_ID_BY_VALUE(value) H5VLpeek_connector_id_by_value(value)
+#endif
+
 #define HDF5_VOL_DAOS_VERSION_1 (1) /* Version number of DAOS VOL connector */
 
 /* Macro to ensure H5_DAOS_g is initialized. H5_DAOS_g is only set if
@@ -125,7 +149,7 @@ typedef d_sg_list_t daos_sg_list_t;
 #define H5_DAOS_G_INIT(ERR)                                                                                  \
     do {                                                                                                     \
         if (H5_DAOS_g < 0)                                                                                   \
-            if ((H5_DAOS_g = H5VLpeek_connector_id_by_value(H5_DAOS_CONNECTOR_VALUE)) < 0)                   \
+            if ((H5_DAOS_g = H5_DAOS_PEEK_CONNECTOR_ID_BY_VALUE(H5_DAOS_CONNECTOR_VALUE)) < 0)               \
                 D_GOTO_ERROR(H5E_ID, H5E_CANTGET, ERR,                                                       \
                              "unable to get registered ID for DAOS VOL connector");                          \
     } while (0)
@@ -660,11 +684,17 @@ typedef struct H5_daos_dset_t {
 } H5_daos_dset_t;
 
 /* The datatype struct */
-/* Note we could speed things up a bit by caching the serialized datatype.  We
- * may also not need to keep the type_id around.  -NAF */
+/* The datatype is cached in its serialized (H5Tencode'd) form rather than as
+ * a live, open hid_t. A live hid_t here would be indistinguishable from a
+ * user-visible open object to H5Fget_obj_count(H5F_OBJ_ALL, ...), which
+ * bypasses the VOL layer and just counts all app-referenced HDF5 IDs of the
+ * requested type(s) - inflating that count for the entire lifetime of this
+ * object. Decode a transient hid_t on demand where one is actually needed
+ * and close it immediately after use instead. */
 typedef struct H5_daos_dtype_t {
     H5_daos_obj_t obj; /* Must be first */
-    hid_t         type_id;
+    void         *type_buf;
+    size_t        type_buf_size;
     hid_t         tcpl_id;
     hid_t         tapl_id;
 } H5_daos_dtype_t;
