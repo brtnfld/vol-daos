@@ -64,6 +64,9 @@ H5_daos_detect_vl_vlstr_ref(hid_t type_id)
         case H5T_BITFIELD:
         case H5T_OPAQUE:
         case H5T_ENUM:
+#if H5_VERSION_GE(2, 0, 0)
+        case H5T_COMPLEX:
+#endif
             /* No conversion necessary */
             ret_value = FALSE;
 
@@ -227,6 +230,9 @@ H5_daos_need_bkg(hid_t src_type_id, hid_t dst_type_id, hbool_t dst_file, size_t 
         case H5T_BITFIELD:
         case H5T_OPAQUE:
         case H5T_ENUM:
+#if H5_VERSION_GE(2, 0, 0)
+        case H5T_COMPLEX:
+#endif
 
             /* No background buffer necessary */
             ret_value = FALSE;
