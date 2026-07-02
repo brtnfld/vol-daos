@@ -130,9 +130,12 @@ static int H5_daos_collective_error_check_comp_cb(tse_task_t *task, void *args);
      H5VL_CAP_FLAG_REF_MORE | H5VL_CAP_FLAG_OBJ_REF | H5VL_CAP_FLAG_REG_REF | H5VL_CAP_FLAG_ATTR_REF |       \
      H5VL_CAP_FLAG_STORED_DATATYPES | H5VL_CAP_FLAG_CREATION_ORDER | H5VL_CAP_FLAG_ITERATE |                 \
      H5VL_CAP_FLAG_STORAGE_SIZE | H5VL_CAP_FLAG_BY_IDX | H5VL_CAP_FLAG_GET_PLIST |                           \
-     H5VL_CAP_FLAG_FLUSH_REFRESH | H5VL_CAP_FLAG_EXTERNAL_LINKS | H5VL_CAP_FLAG_HARD_LINKS |                 \
-     H5VL_CAP_FLAG_SOFT_LINKS | H5VL_CAP_FLAG_UD_LINKS | H5VL_CAP_FLAG_TRACK_TIMES |                         \
-     H5VL_CAP_FLAG_FILL_VALUES)
+     H5VL_CAP_FLAG_FLUSH_REFRESH | H5VL_CAP_FLAG_HARD_LINKS | H5VL_CAP_FLAG_SOFT_LINKS |                     \
+     H5VL_CAP_FLAG_TRACK_TIMES | H5VL_CAP_FLAG_FILL_VALUES)
+/* External links (H5Lcreate_external) and user-defined links are not implemented:
+ * H5_daos_link_create() hard-errors on H5VL_LINK_CREATE_UD (daos_vol_link.c), so
+ * these flags must not be advertised or callers relying on them will fail at
+ * runtime instead of getting a capability-based rejection. */
 
 #else
 
