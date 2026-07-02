@@ -1,3 +1,6 @@
 [submodule "test/vol"]
 	path = test/vol
-	url = https://github.com/HDFGroup/vol-tests.git
+	# TEMPORARY: pointing at brtnfld/vol-tests fix branch
+	# (allow-benign-pool-svc-lock-message) pending upstream PR review.
+	# Revert to https://github.com/HDFGroup/vol-tests.git once merged.
+	url = https://github.com/brtnfld/vol-tests.git

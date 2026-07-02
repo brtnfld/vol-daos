@@ -30,15 +30,19 @@ set(DAOS_SERVER_CONFIG_FILEPATH
 )
 
 # Postflags
+# Note: --recreate-superblocks was removed from newer daos_server CLIs;
+# storage is now formatted explicitly via "dmg storage format" (see daos_pool.sh.in).
 set(DAOS_SERVER_POSTFLAGS
   "start"
-  "--recreate-superblocks"
   "-o ${DAOS_SERVER_CONFIG_FILEPATH}"
 )
 
 # Transport
-set(DAOS_SERVER_TRANSPORT "ofi+sockets" CACHE STRING
-  "Transport used by DAOS server for testing (sm, ofi+sockets)."
+# Note: libfabric removed the "sockets" provider (~1.16+); DAOS 2.6.x bundles
+# libfabric 1.22, so "ofi+sockets" now fails with "provider not found". Use
+# "ofi+tcp" instead.
+set(DAOS_SERVER_TRANSPORT "ofi+tcp" CACHE STRING
+  "Transport used by DAOS server for testing (sm, ofi+tcp)."
 )
 mark_as_advanced(DAOS_SERVER_TRANSPORT)
 
