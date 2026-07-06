@@ -7277,9 +7277,6 @@ H5_daos_attribute_get_name_by_name_order(H5_daos_attr_get_name_by_idx_ud_t *get_
     assert(first_task);
     assert(dep_task);
 
-    if (H5_ITER_DEC == get_name_udata->iter_order)
-        D_GOTO_ERROR(H5E_ATTR, H5E_UNSUPPORTED, FAIL, "decreasing order iteration is unsupported");
-
     /* Retrieve the current number of attributes attached to the target object */
     if (H5_daos_object_get_num_attrs(get_name_udata->target_obj, &get_name_udata->obj_nattrs, FALSE, req,
                                      first_task, dep_task) < 0)
@@ -7306,10 +7303,13 @@ H5_daos_attribute_get_name_by_name_order(H5_daos_attr_get_name_by_idx_ud_t *get_
     *dep_task = no_attrs_check_task;
     req->rc++;
 
-    /* Initialize iteration data */
+    /* Initialize iteration data. Always walk in increasing order internally
+     * and let H5_daos_attribute_get_name_by_name_order_cb() remap the target
+     * index for H5_ITER_DEC, since name-order attribute storage only
+     * supports forward enumeration. */
     get_name_udata->u.by_name_data.cur_attr_idx = 0;
-    H5_DAOS_ITER_DATA_INIT(iter_data, H5_DAOS_ITER_TYPE_ATTR, H5_INDEX_NAME, get_name_udata->iter_order,
-                           FALSE, NULL, H5I_INVALID_HID, get_name_udata, NULL, req);
+    H5_DAOS_ITER_DATA_INIT(iter_data, H5_DAOS_ITER_TYPE_ATTR, H5_INDEX_NAME, H5_ITER_INC, FALSE, NULL,
+                           H5I_INVALID_HID, get_name_udata, NULL, req);
     iter_data.u.attr_iter_data.u.attr_iter_op = H5_daos_attribute_get_name_by_name_order_cb;
 
     if (H5_daos_attribute_iterate(get_name_udata->target_obj, &iter_data, req, first_task, dep_task) < 0)
@@ -7337,18 +7337,25 @@ H5_daos_attribute_get_name_by_name_order_cb(hid_t H5VL_DAOS_UNUSED loc_id, const
                                             const H5A_info_t H5VL_DAOS_UNUSED *attr_info, void *op_data)
 {
     H5_daos_attr_get_name_by_idx_ud_t *udata     = (H5_daos_attr_get_name_by_idx_ud_t *)op_data;
+    uint64_t                           target_idx;
     herr_t                             ret_value = H5_ITER_CONT;
 
     /* Check the index is within range */
     if (udata->u.by_name_data.cur_attr_idx >= (uint64_t)udata->obj_nattrs)
         D_GOTO_ERROR(H5E_ATTR, H5E_BADVALUE, H5_ITER_ERROR, "index value out of range");
 
+    /* This callback always drives a forward (increasing-order) walk (see
+     * H5_daos_attribute_get_name_by_name_order()); remap the target index
+     * for H5_ITER_DEC here instead. */
+    target_idx =
+        (H5_ITER_DEC == udata->iter_order) ? (uint64_t)udata->obj_nattrs - udata->idx - 1 : udata->idx;
+
     /*
      * Once the target index has been reached, set the size of the attribute
      * name to be returned and copy the attribute name if the attribute name
      * output buffer is not NULL.
      */
-    if (udata->u.by_name_data.cur_attr_idx == udata->idx) {
+    if (udata->u.by_name_data.cur_attr_idx == target_idx) {
         size_t attr_name_len = strlen(attr_name);
 
         if (udata->attr_name_out && udata->attr_name_out_size > 0) {
