@@ -2699,7 +2699,6 @@ H5_daos_datatype_copy(H5_daos_object_copy_ud_t *obj_copy_udata, H5_daos_req_t *r
 {
     H5_daos_dtype_t *src_dtype;
     H5_daos_req_t   *int_int_req = NULL;
-    hid_t            src_type_id = H5I_INVALID_HID;
     int              ret;
     herr_t           ret_value = SUCCEED;
 
@@ -2714,14 +2713,6 @@ H5_daos_datatype_copy(H5_daos_object_copy_ud_t *obj_copy_udata, H5_daos_req_t *r
 
     src_dtype = (H5_daos_dtype_t *)obj_copy_udata->src_obj;
 
-    /* Decode the source datatype into a transient hid_t - it's cached in
-     * serialized form (see comment on H5_daos_dtype_t) rather than as a
-     * live, open hid_t, so one must be materialized here for
-     * H5_daos_datatype_commit_helper() to copy. Closed below once the
-     * (synchronous) commit_helper call has consumed it. */
-    if ((src_type_id = H5_DAOS_TDECODE(src_dtype->type_buf, src_dtype->type_buf_size)) < 0)
-        D_GOTO_ERROR(H5E_DATATYPE, H5E_CANTDECODE, FAIL, "can't deserialize datatype");
-
     /* Start internal H5 operation for target object open.  This will
      * not be visible to the API, will not be added to an operation
      * pool, and will be integrated into this function's task chain. */
@@ -2732,7 +2723,7 @@ H5_daos_datatype_copy(H5_daos_object_copy_ud_t *obj_copy_udata, H5_daos_req_t *r
 
     /* Copy the datatype */
     if (NULL == (obj_copy_udata->copied_obj = H5_daos_datatype_commit_helper(
-                     obj_copy_udata->dst_grp->obj.item.file, src_type_id, src_dtype->tcpl_id,
+                     obj_copy_udata->dst_grp->obj.item.file, src_dtype->type_id, src_dtype->tcpl_id,
                      src_dtype->tapl_id, obj_copy_udata->dst_grp, obj_copy_udata->new_obj_name,
                      strlen(obj_copy_udata->new_obj_name), FALSE, int_int_req, first_task, dep_task)))
         D_GOTO_ERROR(H5E_DATATYPE, H5E_CANTCOPY, FAIL, "can't commit new datatype");
@@ -2763,10 +2754,6 @@ H5_daos_datatype_copy(H5_daos_object_copy_ud_t *obj_copy_udata, H5_daos_req_t *r
             D_GOTO_ERROR(H5E_DATATYPE, H5E_CANTCOPY, FAIL, "can't copy datatype's attributes");
 
 done:
-    /* Close transient decoded copy of the source datatype */
-    if (src_type_id >= 0 && H5Tclose(src_type_id) < 0)
-        D_DONE_ERROR(H5E_DATATYPE, H5E_CLOSEERROR, FAIL, "can't close datatype");
-
     /* Close internal request for target object create */
     if (int_int_req && H5_daos_req_free_int(int_int_req) < 0)
         D_DONE_ERROR(H5E_DATATYPE, H5E_CLOSEERROR, FAIL, "can't free request");
