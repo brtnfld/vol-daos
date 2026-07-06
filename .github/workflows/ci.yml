@@ -27,10 +27,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # clang-format-13 is no longer packaged on current ubuntu-latest
-      # (Ubuntu 24.04) runners; 14 is the oldest still available and
-      # closest to the original, minimizing reformatting-rule drift.
-      CLANG_FORMAT_VERSION: 14
+      CLANG_FORMAT_VERSION: 17
 
     steps:
       - name: Checkout source
