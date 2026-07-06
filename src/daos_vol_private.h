@@ -684,17 +684,9 @@ typedef struct H5_daos_dset_t {
 } H5_daos_dset_t;
 
 /* The datatype struct */
-/* The datatype is cached in its serialized (H5Tencode'd) form rather than as
- * a live, open hid_t. A live hid_t here would be indistinguishable from a
- * user-visible open object to H5Fget_obj_count(H5F_OBJ_ALL, ...), which
- * bypasses the VOL layer and just counts all app-referenced HDF5 IDs of the
- * requested type(s) - inflating that count for the entire lifetime of this
- * object. Decode a transient hid_t on demand where one is actually needed
- * and close it immediately after use instead. */
 typedef struct H5_daos_dtype_t {
     H5_daos_obj_t obj; /* Must be first */
-    void         *type_buf;
-    size_t        type_buf_size;
+    hid_t         type_id;
     hid_t         tcpl_id;
     hid_t         tapl_id;
 } H5_daos_dtype_t;

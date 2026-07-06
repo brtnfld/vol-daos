@@ -695,8 +695,7 @@ H5_daos_datatype_commit_helper(H5_daos_file_t *file, hid_t type_id, hid_t tcpl_i
     dtype->obj.item.file = file;
     dtype->obj.item.rc   = 1;
     dtype->obj.obj_oh    = DAOS_HDL_INVAL;
-    dtype->type_buf      = NULL;
-    dtype->type_buf_size = 0;
+    dtype->type_id       = H5I_INVALID_HID;
     dtype->tcpl_id       = H5P_DATATYPE_CREATE_DEFAULT;
     dtype->tapl_id       = H5P_DATATYPE_ACCESS_DEFAULT;
 
@@ -854,15 +853,9 @@ H5_daos_datatype_commit_helper(H5_daos_file_t *file, hid_t type_id, hid_t tcpl_i
         finalize_ndeps   = 1;
     } /* end else */
 
-    /* Finish setting up datatype struct.  Cache the datatype in its
-     * serialized form rather than keeping a live, open hid_t around for the
-     * life of this object - see comment on H5_daos_dtype_t. */
-    if (H5Tencode(type_id, NULL, &dtype->type_buf_size) < 0)
-        D_GOTO_ERROR(H5E_DATATYPE, H5E_CANTENCODE, NULL, "can't determine serialized length of datatype");
-    if (NULL == (dtype->type_buf = DV_malloc(dtype->type_buf_size)))
-        D_GOTO_ERROR(H5E_DATATYPE, H5E_CANTALLOC, NULL, "can't allocate space for serialized datatype");
-    if (H5Tencode(type_id, dtype->type_buf, &dtype->type_buf_size) < 0)
-        D_GOTO_ERROR(H5E_DATATYPE, H5E_CANTENCODE, NULL, "can't serialize datatype");
+    /* Finish setting up datatype struct */
+    if ((dtype->type_id = H5Tcopy(type_id)) < 0)
+        D_GOTO_ERROR(H5E_DATATYPE, H5E_CANTCOPY, NULL, "failed to copy datatype");
     if (!default_tcpl && (dtype->tcpl_id = H5Pcopy(tcpl_id)) < 0)
         D_GOTO_ERROR(H5E_DATATYPE, H5E_CANTCOPY, NULL, "failed to copy tcpl");
     if ((tapl_id != H5P_DATATYPE_ACCESS_DEFAULT) && (dtype->tapl_id = H5Pcopy(tapl_id)) < 0)
@@ -1171,8 +1164,7 @@ H5_daos_datatype_open_helper(H5_daos_file_t *file, hid_t tapl_id, hbool_t collec
     dtype->obj.item.file = file;
     dtype->obj.item.rc   = 1;
     dtype->obj.obj_oh    = DAOS_HDL_INVAL;
-    dtype->type_buf      = NULL;
-    dtype->type_buf_size = 0;
+    dtype->type_id       = H5I_INVALID_HID;
     dtype->tcpl_id       = H5P_DATATYPE_CREATE_DEFAULT;
     dtype->tapl_id       = H5P_DATATYPE_ACCESS_DEFAULT;
     if ((tapl_id != H5P_DATATYPE_ACCESS_DEFAULT) && (dtype->tapl_id = H5Pcopy(tapl_id)) < 0)
@@ -1611,13 +1603,9 @@ H5_daos_datatype_open_end(H5_daos_dtype_t *dtype, uint8_t *p, uint64_t type_buf_
     assert(p);
     assert(type_buf_len > 0);
 
-    /* Cache datatype in its serialized form rather than decoding into a
-     * live, open hid_t - see comment on H5_daos_dtype_t. */
-    if (NULL == (dtype->type_buf = DV_malloc(type_buf_len)))
-        D_GOTO_ERROR(H5E_RESOURCE, H5E_CANTALLOC, -H5_DAOS_ALLOC_ERROR,
-                     "can't allocate space for serialized datatype");
-    memcpy(dtype->type_buf, p, type_buf_len);
-    dtype->type_buf_size = type_buf_len;
+    /* Decode datatype */
+    if ((dtype->type_id = H5_DAOS_TDECODE(p, type_buf_len)) < 0)
+        D_GOTO_ERROR(H5E_ARGS, H5E_CANTDECODE, -H5_DAOS_H5_DECODE_ERROR, "can't deserialize datatype");
     p += type_buf_len;
 
     /* Check if the datatype's TCPL is the default TCPL.
@@ -1874,8 +1862,9 @@ H5_daos_datatype_get(void *_dtype, H5VL_datatype_get_args_t *get_args, hid_t H5V
                     D_GOTO_ERROR(H5E_DATATYPE, H5E_CANTOPENOBJ, FAIL, "group open failed");
             } /* end if */
 
-            /* Datatype is already cached in its serialized form */
-            *binary_size = dtype->type_buf_size;
+            if (H5Tencode(dtype->type_id, NULL, binary_size) < 0)
+                D_GOTO_ERROR(H5E_DATATYPE, H5E_BADTYPE, FAIL,
+                             "can't determine serialized length of datatype");
 
             break;
         } /* end block */
@@ -1891,10 +1880,9 @@ H5_daos_datatype_get(void *_dtype, H5VL_datatype_get_args_t *get_args, hid_t H5V
                     D_GOTO_ERROR(H5E_DATATYPE, H5E_CANTOPENOBJ, FAIL, "group open failed");
             } /* end if */
 
-            /* Datatype is already cached in its serialized form */
-            if (size < dtype->type_buf_size)
-                D_GOTO_ERROR(H5E_DATATYPE, H5E_BADVALUE, FAIL, "buffer too small for serialized datatype");
-            memcpy(buf, dtype->type_buf, dtype->type_buf_size);
+            if (H5Tencode(dtype->type_id, buf, &size) < 0)
+                D_GOTO_ERROR(H5E_DATATYPE, H5E_BADTYPE, FAIL,
+                             "can't determine serialized length of datatype");
 
             break;
         } /* end block */
@@ -2078,7 +2066,8 @@ H5_daos_datatype_close_real(H5_daos_dtype_t *dtype)
             if (0 != (ret = daos_obj_close(dtype->obj.obj_oh, NULL /*event*/)))
                 D_DONE_ERROR(H5E_DATATYPE, H5E_CANTCLOSEOBJ, FAIL, "can't close datatype DAOS object: %s",
                              H5_daos_err_to_string(ret));
-        dtype->type_buf = DV_free(dtype->type_buf);
+        if (dtype->type_id != H5I_INVALID_HID && H5Idec_ref(dtype->type_id) < 0)
+            D_DONE_ERROR(H5E_DATATYPE, H5E_CANTDEC, FAIL, "failed to close datatype");
         if (dtype->tcpl_id != H5I_INVALID_HID && dtype->tcpl_id != H5P_DATATYPE_CREATE_DEFAULT)
             if (H5Idec_ref(dtype->tcpl_id) < 0)
                 D_DONE_ERROR(H5E_DATATYPE, H5E_CANTDEC, FAIL, "failed to close tcpl");
