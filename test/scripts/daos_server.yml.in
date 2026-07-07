@@ -21,7 +21,7 @@ transport_config:
 # single server instance per config file for now
 engines:
 -
-  targets: 4
+  targets: @DAOS_SERVER_TARGETS@
   first_core: 0
   nr_xs_helpers: 0
   fabric_iface: @DAOS_SERVER_IFACE@
@@ -32,10 +32,6 @@ engines:
   - ABT_ENV_MAX_NUM_XSTREAMS=100
   - ABT_MAX_NUM_XSTREAMS=100
   - DAOS_MD_CAP=1024
-  # CI runners have far fewer cores than "targets" below assumes; without
-  # this the engine refuses to start ("cannot start engine with 4 targets
-  # ... on 2 cores").
-  - DAOS_TARGET_OVERSUBSCRIBE=1
   - CRT_CTX_SHARE_ADDR=0
   - CRT_TIMEOUT=30
   - FI_SOCKETS_MAX_CONN_RETRY=1

@@ -144,13 +144,14 @@ jobs:
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/hdf5-install" \
             -DBUILD_TESTING=ON \
             -DHDF5_VOL_TEST_ENABLE_PARALLEL=ON \
-            -DMPIEXEC_MAX_NUMPROCS=2
+            -DMPIEXEC_MAX_NUMPROCS=2 \
+            -DDAOS_SERVER_TARGETS="$(nproc)"
 
       - name: Build connector
         run: cmake --build build -j"$(nproc)"
 
       - name: Run tests
-        # Excludes 4 known, tracked failures (not regressions) so CI stays
+        # Excludes known, tracked failures (not regressions) so CI stays
         # green on everything actually verified so far:
         #   - h5_test_testhdf5: real connector bug in paginated attribute
         #     name/index resolution (daos_vol_attr.c), only triggered once a
@@ -159,10 +160,14 @@ jobs:
         #     (timeout): likely DAOS RAM-backed storage exhaustion from
         #     running ~12 sequential DAOS server/pool instances in one CI
         #     container, not yet confirmed to be a connector bug.
-        #   - h5vl_test: fails on two known bugs, tracked separately.
+        #   - h5vl_test_file: over-counts open objects on repeated file opens.
+        #   - h5vl_test_object: H5Ovisit hard-errors on a group without
+        #     creation-order tracking. Each h5vl_test_* part runs against its
+        #     own DAOS server instance (HDF5_VOL_TEST_ENABLE_PART), so
+        #     excluding just these two lets the rest of h5vl_test run.
         run: >
           ctest --test-dir build --output-on-failure --timeout 300
-          -E '^(h5_test_testhdf5|h5_partest_t_bigio|h5vl_ext_h5daos_test_metadata_parallel|h5vl_test)$'
+          -E '^(h5_test_testhdf5|h5_partest_t_bigio|h5vl_ext_h5daos_test_metadata_parallel|h5vl_test_file|h5vl_test_object)$'
 
       - name: Dump DAOS logs
         if: always()

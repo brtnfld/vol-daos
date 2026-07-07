@@ -30,17 +30,13 @@ set(DAOS_SERVER_CONFIG_FILEPATH
 )
 
 # Postflags
-# Note: --recreate-superblocks was removed from newer daos_server CLIs;
-# storage is now formatted explicitly via "dmg storage format" (see daos_pool.sh.in).
+# Storage is formatted explicitly via "dmg storage format" (see daos_pool.sh.in).
 set(DAOS_SERVER_POSTFLAGS
   "start"
   "-o ${DAOS_SERVER_CONFIG_FILEPATH}"
 )
 
 # Transport
-# Note: libfabric removed the "sockets" provider (~1.16+); DAOS 2.6.x bundles
-# libfabric 1.22, so "ofi+sockets" now fails with "provider not found". Use
-# "ofi+tcp" instead.
 set(DAOS_SERVER_TRANSPORT "ofi+tcp" CACHE STRING
   "Transport used by DAOS server for testing (sm, ofi+tcp)."
 )
@@ -57,6 +53,12 @@ set(DAOS_SERVER_SCM_SIZE "8" CACHE STRING
   "Size of RAM available for storage in GB."
 )
 mark_as_advanced(DAOS_SERVER_SCM_SIZE)
+
+# Engine targets
+set(DAOS_SERVER_TARGETS "4" CACHE STRING
+  "Number of storage targets for the DAOS server engine to use. Must not exceed the number of cores available on the host."
+)
+mark_as_advanced(DAOS_SERVER_TARGETS)
 
 # SCM mnt
 set(DAOS_SERVER_SCM_MNT "/mnt/daos" CACHE STRING
@@ -201,6 +203,7 @@ set(H5VL_TEST_ENV_VARS "env ${DAOS_CLIENT_ENV_VARS}")
 
 set(HDF5_VOL_TEST_EXTERNALLY_CONFIGURED TRUE)
 set(HDF5_VOL_TEST_ENABLE_PARALLEL "ON" CACHE BOOL "Enable testing in parallel (requires MPI).")
+set(HDF5_VOL_TEST_ENABLE_PART "ON" CACHE BOOL "Enable testing in separate tests.")
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vol/CMakeLists.txt)
   message(STATUS "VOL test submodule not found, checking it out")
   # get newest submodule info
