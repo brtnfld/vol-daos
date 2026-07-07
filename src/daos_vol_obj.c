@@ -4362,6 +4362,11 @@ H5_daos_object_visit_task(tse_task_t *task)
         H5_DAOS_ITER_DATA_INIT(sub_iter_data, H5_DAOS_ITER_TYPE_LINK, udata->iter_data.index_type,
                                udata->iter_data.iter_order, FALSE, udata->iter_data.idx_p,
                                udata->target_obj_id, udata, NULL, udata->req);
+        /* This per-group enumeration is non-recursive at the link-iteration
+         * level, but it still implements H5Ovisit's "best effort" index type
+         * semantics, so it must fall back to name order for groups without
+         * tracked creation order just like H5Lvisit does. */
+        sub_iter_data.best_effort_index_type                = TRUE;
         sub_iter_data.async_op                              = TRUE;
         sub_iter_data.u.link_iter_data.u.link_iter_op_async = H5_daos_object_visit_link_iter_cb;
 

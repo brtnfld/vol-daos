@@ -307,6 +307,7 @@ typedef d_sg_list_t daos_sg_list_t;
         _iter_data.index_type    = _idx_type;                                                                \
         _iter_data.iter_order    = _iter_order;                                                              \
         _iter_data.is_recursive  = _is_recursive;                                                            \
+        _iter_data.best_effort_index_type = _is_recursive;                                                   \
         _iter_data.idx_p         = _idx_p;                                                                   \
         _iter_data.iter_root_obj = _iter_root_obj;                                                           \
         _iter_data.op_data       = _op_data;                                                                 \
@@ -907,6 +908,15 @@ typedef struct H5_daos_iter_data_t {
     H5_iter_order_t iter_order;
     H5_index_t      index_type;
     hbool_t         is_recursive;
+    hbool_t         best_effort_index_type; /* If TRUE, silently fall back to name order when
+                                              * creation order isn't tracked for the target
+                                              * group, instead of erroring.  Defaults to
+                                              * is_recursive (matches H5Lvisit's documented
+                                              * best-effort semantics), but is overridden to
+                                              * TRUE for H5Ovisit's internal per-group link
+                                              * enumeration, which needs the same best-effort
+                                              * fallback despite being non-recursive at the
+                                              * link-iteration level. */
     hbool_t         async_op;
     hsize_t        *idx_p;
     hid_t           iter_root_obj;

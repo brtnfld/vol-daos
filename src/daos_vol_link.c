@@ -6137,11 +6137,16 @@ H5_daos_link_ibco_task(tse_task_t *task)
     if (!udata->target_grp->gcpl_cache.track_corder) {
         assert(udata->crt_idx == 0);
 
-        if (udata->iter_data->is_recursive) {
+        if (udata->iter_data->best_effort_index_type) {
             /*
-             * For calls to H5Lvisit ONLY, the index type setting is a "best effort"
-             * setting, meaning that we fall back to name order if link creation order
-             * is not tracked for the target group.
+             * For H5Lvisit and for H5Ovisit's internal, non-recursive
+             * per-group link enumeration (set by
+             * H5_daos_object_visit_link_iter_task() in daos_vol_obj.c), the
+             * index type setting is a "best effort" setting, meaning that we
+             * fall back to name order if link creation order is not tracked
+             * for the target group. A direct H5Literate call does not get
+             * this fallback and instead errors below, matching HDF5's
+             * stricter, non-best-effort semantics for that API.
              */
             /* Initiate iteration by name order.  No need to change the
              * index_type field in iter_data since the internal functions for
