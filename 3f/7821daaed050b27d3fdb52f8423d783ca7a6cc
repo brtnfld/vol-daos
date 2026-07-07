@@ -1,0 +1,21 @@
+test/scripts/daos_server.yml.in
+  s_26dd7a02fa0645::t_aa14f7483fb411 35-40
+.github/workflows/ci.yml
+  s_26dd7a02fa0645::t_354a137e138204 147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3f7821daaed050b27d3fdb52f8423d783ca7a6cc",
+  "prompts": {},
+  "sessions": {
+    "s_26dd7a02fa0645": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9df97eec-d0bc-4dec-b936-0a96ef62e3ff",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "M. Scot Breitenfeld <brtnfld@hdfgroup.org>"
+    }
+  }
+}
