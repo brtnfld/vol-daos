@@ -1,0 +1,22 @@
+src/daos_vol.c
+  s_26dd7a02fa0645::t_3d152527f93cc6 1284-1288
+  s_26dd7a02fa0645::t_95581677791d57 1283
+src/daos_vol_private.h
+  s_26dd7a02fa0645::t_33e3cdf91815a5 133-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2596e9d97a84405b95cd4cbda0f8e5d058d8d1ed",
+  "prompts": {},
+  "sessions": {
+    "s_26dd7a02fa0645": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9df97eec-d0bc-4dec-b936-0a96ef62e3ff",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "M. Scot Breitenfeld <brtnfld@hdfgroup.org>"
+    }
+  }
+}
