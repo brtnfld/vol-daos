@@ -203,7 +203,6 @@ set(H5VL_TEST_ENV_VARS "env ${DAOS_CLIENT_ENV_VARS}")
 
 set(HDF5_VOL_TEST_EXTERNALLY_CONFIGURED TRUE)
 set(HDF5_VOL_TEST_ENABLE_PARALLEL "ON" CACHE BOOL "Enable testing in parallel (requires MPI).")
-set(HDF5_VOL_TEST_ENABLE_PART "ON" CACHE BOOL "Enable testing in separate tests.")
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vol/CMakeLists.txt)
   message(STATUS "VOL test submodule not found, checking it out")
   # get newest submodule info

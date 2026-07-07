@@ -160,14 +160,12 @@ jobs:
         #     (timeout): likely DAOS RAM-backed storage exhaustion from
         #     running ~12 sequential DAOS server/pool instances in one CI
         #     container, not yet confirmed to be a connector bug.
-        #   - h5vl_test_file: over-counts open objects on repeated file opens.
-        #   - h5vl_test_object: H5Ovisit hard-errors on a group without
-        #     creation-order tracking. Each h5vl_test_* part runs against its
-        #     own DAOS server instance (HDF5_VOL_TEST_ENABLE_PART), so
-        #     excluding just these two lets the rest of h5vl_test run.
+        # h5vl_test's own known-broken checks are gated out at the source
+        # (HDFGroup/vol-tests#70) rather than excluded here, so it runs as
+        # a single ctest entry like the rest of the suite.
         run: >
           ctest --test-dir build --output-on-failure --timeout 300
-          -E '^(h5_test_testhdf5|h5_partest_t_bigio|h5vl_ext_h5daos_test_metadata_parallel|h5vl_test_file|h5vl_test_object)$'
+          -E '^(h5_test_testhdf5|h5_partest_t_bigio|h5vl_ext_h5daos_test_metadata_parallel)$'
 
       - name: Dump DAOS logs
         if: always()
