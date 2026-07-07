@@ -1,0 +1,21 @@
+.github/workflows/ci.yml
+  s_26dd7a02fa0645::t_c55c868e20b423 163-165,168
+.gitmodules
+  s_26dd7a02fa0645::t_595f458d677cdb 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e87ffde618fa341f21ed8932b7d92f2da1b776d7",
+  "prompts": {},
+  "sessions": {
+    "s_26dd7a02fa0645": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9df97eec-d0bc-4dec-b936-0a96ef62e3ff",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "M. Scot Breitenfeld <brtnfld@hdfgroup.org>"
+    }
+  }
+}
