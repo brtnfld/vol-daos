@@ -1,0 +1,27 @@
+test/CMakeLists.txt
+  s_26dd7a02fa0645::t_3acd87fed914be 59
+  s_26dd7a02fa0645::t_4a7077f203b1d0 206
+  s_26dd7a02fa0645::t_f9444da76fb456 33
+  s_26dd7a02fa0645::t_d2b3028e99bf46 57-58,60-62
+test/scripts/daos_server.yml.in
+  s_26dd7a02fa0645::t_282473ce8402f9 24
+.github/workflows/ci.yml
+  s_26dd7a02fa0645::t_8252c8042e9010 154,163-167,170
+  s_26dd7a02fa0645::t_9cfdb03a59e4b7 147-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ae17fad4af638a461b298cf3b8380c3b262ab949",
+  "prompts": {},
+  "sessions": {
+    "s_26dd7a02fa0645": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9df97eec-d0bc-4dec-b936-0a96ef62e3ff",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "M. Scot Breitenfeld <brtnfld@hdfgroup.org>"
+    }
+  }
+}
