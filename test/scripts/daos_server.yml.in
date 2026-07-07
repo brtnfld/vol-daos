@@ -32,6 +32,12 @@ engines:
   - ABT_ENV_MAX_NUM_XSTREAMS=100
   - ABT_MAX_NUM_XSTREAMS=100
   - DAOS_MD_CAP=1024
+  # DAOS_SERVER_TARGETS is configurable (see test/CMakeLists.txt), but the
+  # actual usable core count in a given environment (e.g. a CI container)
+  # isn't reliably discoverable, and giving the engine more targets than
+  # cores without this can make it hang during startup rather than fail
+  # fast, instead of just refusing to start as it does with too few cores.
+  - DAOS_TARGET_OVERSUBSCRIBE=1
   - CRT_CTX_SHARE_ADDR=0
   - CRT_TIMEOUT=30
   - FI_SOCKETS_MAX_CONN_RETRY=1
