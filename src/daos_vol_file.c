@@ -44,15 +44,15 @@ typedef struct H5_daos_cont_op_info_t {
 } H5_daos_cont_op_info_t;
 
 typedef struct get_obj_count_udata_t {
-    char   file_id[DAOS_PROP_LABEL_MAX_LEN + 1];
-    size_t obj_count;
+    H5_daos_file_t *target_file;
+    size_t          obj_count;
 } get_obj_count_udata_t;
 
 typedef struct get_obj_ids_udata_t {
-    char   file_id[DAOS_PROP_LABEL_MAX_LEN + 1];
-    size_t max_objs;
-    hid_t *oid_list;
-    size_t obj_count;
+    H5_daos_file_t *target_file;
+    size_t          max_objs;
+    hid_t          *oid_list;
+    size_t          obj_count;
 } get_obj_ids_udata_t;
 
 /********************/
@@ -2564,9 +2564,8 @@ H5_daos_file_get(void *_item, H5VL_file_get_args_t *get_args, hid_t H5VL_DAOS_UN
             size_t               *ret_val   = get_args->args.get_obj_count.count;
             get_obj_count_udata_t udata;
 
-            udata.obj_count = 0;
-
-            strcpy(udata.file_id, file->cont);
+            udata.obj_count   = 0;
+            udata.target_file = file;
 
             if (obj_types & H5F_OBJ_FILE)
                 if (H5Iiterate(H5I_FILE, H5_daos_get_obj_count_callback, &udata) < 0)
@@ -2600,13 +2599,12 @@ H5_daos_file_get(void *_item, H5VL_file_get_args_t *get_args, hid_t H5VL_DAOS_UN
             size_t             *ret_val   = get_args->args.get_obj_ids.count;
             get_obj_ids_udata_t udata;
 
-            udata.max_objs  = max_ids;
-            udata.obj_count = 0;
-            udata.oid_list  = oid_list;
+            udata.max_objs    = max_ids;
+            udata.obj_count   = 0;
+            udata.oid_list    = oid_list;
+            udata.target_file = file;
 
             if (max_ids > 0) {
-                strcpy(udata.file_id, file->cont);
-
                 if (obj_types & H5F_OBJ_FILE)
                     if (H5Iiterate(H5I_FILE, H5_daos_get_obj_ids_callback, &udata) < 0)
                         D_GOTO_ERROR(H5E_FILE, H5E_BADITER, FAIL,
@@ -3903,7 +3901,7 @@ H5_daos_get_obj_count_callback(hid_t id, void *udata)
         if (NULL == (cur_obj = (H5_daos_obj_t *)H5VLobject(id)))
             D_GOTO_ERROR(H5E_VOL, H5E_CANTGET, H5_ITER_ERROR, "can't retrieve VOL object for ID");
 
-        if (!strcmp(cur_obj->item.file->cont, count_udata->file_id))
+        if (cur_obj->item.file == count_udata->target_file)
             count_udata->obj_count++;
     } /* end if */
 
@@ -3950,7 +3948,7 @@ H5_daos_get_obj_ids_callback(hid_t id, void *udata)
             D_GOTO_ERROR(H5E_VOL, H5E_CANTGET, H5_ITER_ERROR, "can't retrieve VOL object for ID");
 
         if (id_udata->obj_count < id_udata->max_objs) {
-            if (!strcmp(cur_obj->item.file->cont, id_udata->file_id))
+            if (cur_obj->item.file == id_udata->target_file)
                 id_udata->oid_list[id_udata->obj_count++] = id;
         }
         else
