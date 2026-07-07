@@ -1,0 +1,19 @@
+README.md
+  s_26dd7a02fa0645::t_ad81185c1215d8 46-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a94c6cef24bd6d3fa10f70e8c7a4cde12e3092f9",
+  "prompts": {},
+  "sessions": {
+    "s_26dd7a02fa0645": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9df97eec-d0bc-4dec-b936-0a96ef62e3ff",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "M. Scot Breitenfeld <brtnfld@hdfgroup.org>"
+    }
+  }
+}
