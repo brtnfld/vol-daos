@@ -1280,10 +1280,12 @@ H5_daos_term(void)
     /* Free default property list cache */
     DV_free((void *)H5_daos_plist_cache_g);
 
-    /* Release the reference taken by H5VLget_connector_id_by_value() in
-     * H5_DAOS_G_INIT(), then forget the connector id. */
-    if (H5_DAOS_g >= 0 && H5Idec_ref(H5_DAOS_g) < 0)
-        D_DONE_ERROR(H5E_VOL, H5E_CANTDEC, FAIL, "can't close DAOS VOL connector ID");
+    /* "Forget" connector id. Do NOT close/decrement it here: H5_daos_term()
+     * is itself invoked by the library while closing the last reference to
+     * this same ID (however it was obtained - registration, name lookup, or
+     * H5VLget_connector_id_by_value() in H5_DAOS_G_INIT()), so decrementing
+     * it again from within this callback recurses into still-being-torn-down
+     * library state. */
     H5_DAOS_g = H5I_INVALID_HID;
 
     /* No longer initialized */

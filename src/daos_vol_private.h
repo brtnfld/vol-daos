@@ -130,7 +130,8 @@ typedef d_sg_list_t daos_sg_list_t;
  * the connector is manually initialized; if the connector has been
  * dynamically loaded, there are various places that this macro should
  * be used to check and set H5_DAOS_g if necessary. H5VLget_connector_id_by_value()
- * takes a reference on the returned ID, released in H5_daos_term().
+ * takes a reference on the returned ID for the lifetime of the process -
+ * intentionally not released in H5_daos_term() (see comment there).
  */
 #define H5_DAOS_G_INIT(ERR)                                                                                  \
     do {                                                                                                     \
