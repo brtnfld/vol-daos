@@ -1280,8 +1280,10 @@ H5_daos_term(void)
     /* Free default property list cache */
     DV_free((void *)H5_daos_plist_cache_g);
 
-    /* "Forget" connector id.  This should normally be called by the library
-     * when it is closing the id, so no need to close it here. */
+    /* Release the reference taken by H5VLget_connector_id_by_value() in
+     * H5_DAOS_G_INIT(), then forget the connector id. */
+    if (H5_DAOS_g >= 0 && H5Idec_ref(H5_DAOS_g) < 0)
+        D_DONE_ERROR(H5E_VOL, H5E_CANTDEC, FAIL, "can't close DAOS VOL connector ID");
     H5_DAOS_g = H5I_INVALID_HID;
 
     /* No longer initialized */

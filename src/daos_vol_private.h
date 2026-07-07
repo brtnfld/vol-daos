@@ -124,32 +124,18 @@ typedef d_sg_list_t daos_sg_list_t;
 #define H5_DAOS_TDECODE(buf, buf_size) H5Tdecode(buf)
 #endif
 
-/* Versioning for looking up this connector's own registered ID by class
- * value: HDF5 2.0 removed H5VLpeek_connector_id_by_value() entirely, leaving
- * H5VLget_connector_id_by_value() (which takes a reference on the returned
- * ID, unlike the removed "peek" call) as the only public lookup. This is
- * fine here since the result is cached once in the static H5_DAOS_g global
- * for the lifetime of the process (see H5_DAOS_G_INIT below) - the extra
- * held reference is intentional, not a leak, and if anything makes the
- * cached ID safer against being invalidated by an unrelated unregister
- * elsewhere. */
-#if H5_VERSION_GE(2, 0, 0)
-#define H5_DAOS_PEEK_CONNECTOR_ID_BY_VALUE(value) H5VLget_connector_id_by_value(value)
-#else
-#define H5_DAOS_PEEK_CONNECTOR_ID_BY_VALUE(value) H5VLpeek_connector_id_by_value(value)
-#endif
-
 #define HDF5_VOL_DAOS_VERSION_1 (1) /* Version number of DAOS VOL connector */
 
 /* Macro to ensure H5_DAOS_g is initialized. H5_DAOS_g is only set if
  * the connector is manually initialized; if the connector has been
  * dynamically loaded, there are various places that this macro should
- * be used to check and set H5_DAOS_g if necessary.
+ * be used to check and set H5_DAOS_g if necessary. H5VLget_connector_id_by_value()
+ * takes a reference on the returned ID, released in H5_daos_term().
  */
 #define H5_DAOS_G_INIT(ERR)                                                                                  \
     do {                                                                                                     \
         if (H5_DAOS_g < 0)                                                                                   \
-            if ((H5_DAOS_g = H5_DAOS_PEEK_CONNECTOR_ID_BY_VALUE(H5_DAOS_CONNECTOR_VALUE)) < 0)               \
+            if ((H5_DAOS_g = H5VLget_connector_id_by_value(H5_DAOS_CONNECTOR_VALUE)) < 0)                    \
                 D_GOTO_ERROR(H5E_ID, H5E_CANTGET, ERR,                                                       \
                              "unable to get registered ID for DAOS VOL connector");                          \
     } while (0)
