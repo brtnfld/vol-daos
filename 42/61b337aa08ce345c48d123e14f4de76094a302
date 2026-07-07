@@ -1,0 +1,22 @@
+src/daos_vol_link.c
+  s_39344f28edc182::t_40bc0015cc6ec5 6146,6148-6150
+  s_39344f28edc182::t_c2719195817606 6183-6186
+.github/workflows/ci.yml
+  s_39344f28edc182::t_6e747b21a4d3d1 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4261b337aa08ce345c48d123e14f4de76094a302",
+  "prompts": {},
+  "sessions": {
+    "s_39344f28edc182": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "735ec9fd-f1bc-4cbe-9084-0a19ab1c3d33",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "M. Scot Breitenfeld <brtnfld@hdfgroup.org>"
+    }
+  }
+}
