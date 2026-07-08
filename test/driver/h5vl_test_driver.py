@@ -229,7 +229,7 @@ def drain_to_completion(proc, timeout, error_lines):
 
 def stop_process(proc, exit_command, env):
     if exit_command:
-        subprocess.run(shlex.split(exit_command), env=env, check=False)
+        subprocess.run(exit_command, shell=True, env=env, check=False)
     else:
         proc.terminate()
     try:
@@ -248,7 +248,7 @@ def run(args):
 
     try:
         if args["init_command"]:
-            subprocess.run(shlex.split(args["init_command"]), env=env, check=False)
+            subprocess.run(args["init_command"], shell=True, env=env, check=False)
 
         if args["server"]:
             server_argv = build_mpiexec_argv(
