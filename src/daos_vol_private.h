@@ -129,9 +129,14 @@ typedef d_sg_list_t daos_sg_list_t;
 /* Macro to ensure H5_DAOS_g is initialized. H5_DAOS_g is only set if
  * the connector is manually initialized; if the connector has been
  * dynamically loaded, there are various places that this macro should
- * be used to check and set H5_DAOS_g if necessary. H5VLget_connector_id_by_value()
- * takes a reference on the returned ID for the lifetime of the process -
- * intentionally not released in H5_daos_term() (see comment there).
+ * be used to check and set H5_DAOS_g if necessary.
+ *
+ * H5VLget_connector_id_by_value() returns a new reference, which in
+ * principle should be released with H5VLclose() once no longer needed
+ * (unlike the "peek" form, which returns the ID without taking a new
+ * reference). That release is intentionally NOT done in H5_daos_term():
+ * see the comment there for why, and for the known leak this leaves in
+ * an edge case (tracked in HDFGroup/vol-daos#74).
  */
 #define H5_DAOS_G_INIT(ERR)                                                                                  \
     do {                                                                                                     \

@@ -1285,7 +1285,18 @@ H5_daos_term(void)
      * this same ID (however it was obtained - registration, name lookup, or
      * H5VLget_connector_id_by_value() in H5_DAOS_G_INIT()), so decrementing
      * it again from within this callback recurses into still-being-torn-down
-     * library state. */
+     * library state (confirmed: this previously aborted with a DAOS task
+     * scheduler assertion on process shutdown).
+     *
+     * Known gap: if H5_daos_term() is ever reached by some path other than
+     * this ID's own refcount hitting zero, the reference H5_DAOS_G_INIT()
+     * took via H5VLget_connector_id_by_value() would leak (ID and the
+     * connector object's refcount both). Closing it here unconditionally
+     * isn't safe (see above), and doing so conditionally would need both
+     * H5is_library_terminating() and a way to know H5_DAOS_g specifically
+     * came from H5_DAOS_G_INIT() rather than H5Pset_fapl_daos()'s
+     * registration/name-lookup paths - tracked in HDFGroup/vol-daos#74
+     * rather than guessed at here. */
     H5_DAOS_g = H5I_INVALID_HID;
 
     /* No longer initialized */
