@@ -49,6 +49,7 @@ VALUE_FLAGS = {
     "--mpiexec": "mpiexec",
     "--mpiexec-numproc-flag": "mpiexec_numproc_flag",
     "--mpiexec-max-numprocs": "mpiexec_max_numprocs",
+    "--mpiexec-server-max-numprocs": "mpiexec_server_max_numprocs",
     "--mpiexec-preflags": "mpiexec_preflags",
     "--mpiexec-postflags": "mpiexec_postflags",
     "--mpiexec-server-preflags": "mpiexec_server_preflags",
@@ -90,6 +91,7 @@ def parse_args(argv):
         "mpiexec": None,
         "mpiexec_numproc_flag": "-n",
         "mpiexec_max_numprocs": "1",
+        "mpiexec_server_max_numprocs": "1",
         "mpiexec_preflags": "",
         "mpiexec_postflags": "",
         "mpiexec_server_preflags": "",
@@ -149,10 +151,10 @@ def build_env(extra_vars):
     return env
 
 
-def build_mpiexec_argv(args, exe, exe_args, preflags, postflags):
+def build_mpiexec_argv(args, exe, exe_args, numprocs, preflags, postflags):
     if not args["mpiexec"]:
         return [exe] + exe_args
-    argv = [args["mpiexec"], args["mpiexec_numproc_flag"], args["mpiexec_max_numprocs"]]
+    argv = [args["mpiexec"], args["mpiexec_numproc_flag"], numprocs]
     argv += shlex.split(preflags)
     argv += [exe]
     argv += shlex.split(postflags)
@@ -247,7 +249,7 @@ def run(args):
     try:
         if args["server"]:
             server_argv = build_mpiexec_argv(
-                args, args["server"], args["server_args"],
+                args, args["server"], args["server_args"], args["mpiexec_server_max_numprocs"],
                 args["mpiexec_server_preflags"], args["mpiexec_server_postflags"],
             )
             server_proc = start_process(server_argv, env)
@@ -289,6 +291,7 @@ def run(args):
             [args["client"]] + args["client_args"]
             if args["serial"]
             else build_mpiexec_argv(args, args["client"], args["client_args"],
+                                     args["mpiexec_max_numprocs"],
                                      args["mpiexec_preflags"], args["mpiexec_postflags"])
         )
         client_proc = start_process(client_argv, client_env)

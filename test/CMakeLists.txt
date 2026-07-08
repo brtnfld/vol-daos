@@ -280,6 +280,7 @@ else()
     --mpiexec-max-numprocs "${MPIEXEC_MAX_NUMPROCS}"
     --mpiexec-preflags "${MPIEXEC_PREFLAGS}"
     --mpiexec-postflags "${MPIEXEC_POSTFLAGS}"
+    --mpiexec-server-max-numprocs "1"
     --mpiexec-server-preflags "${DAOS_SERVER_PREFLAGS}"
     --mpiexec-server-postflags "${DAOS_SERVER_POSTFLAGS}"
     --allow-server-errors
