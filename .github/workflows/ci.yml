@@ -134,7 +134,7 @@ jobs:
             -DMPIEXEC_MAX_NUMPROCS=2 \
             -DHDF5_VOL_TEST_ENABLE_PARALLEL=ON \
             -DHDF5_VOL_ALLOW_EXTERNAL=LOCAL_DIR \
-            -DHDF5_VOL_PATH01="${{ github.workspace }}/vol-daos" \
+            -DHDF5_VOL_PATH01="$(pwd)/vol-daos" \
             "-DHDF5_VOL_VOL-DAOS_NAME=daos" \
             "-DHDF5_VOL_VOL-DAOS_TEST_PARALLEL=ON"
 
@@ -151,6 +151,7 @@ jobs:
           daos_pool_sh=$(find build -name daos_pool.sh -print -quit)
           echo "daos_server_yml=$daos_server_yml" >> "$GITHUB_ENV"
           echo "daos_agent_sh=$daos_agent_sh" >> "$GITHUB_ENV"
+          echo "D_LOG_FILE=$(pwd)/daos_client.log" >> "$GITHUB_ENV"
 
           mpiexec -n 1 -genv DAOS_DISABLE_REQ_FWD 1 \
             daos_server start -o "$daos_server_yml" \
@@ -178,7 +179,6 @@ jobs:
 
       - name: Run tests
         env:
-          D_LOG_FILE: ${{ github.workspace }}/daos_client.log
           D_LOG_MASK: ERR
           CRT_PHY_ADDR_STR: ofi+tcp
           OFI_INTERFACE: lo
