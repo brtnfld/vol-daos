@@ -1,63 +1,58 @@
 # HDF5 API test suite migration
 
-`test/` no longer depends on the `HDFGroup/vol-tests` submodule. Instead it
-runs HDF5's own in-tree API test suite (`test/API` and `testpar/API`),
-built as part of an HDF5 installation configured with
-`-DHDF5_TEST_API_INSTALL=ON`.
+`test/` no longer depends on the `HDFGroup/vol-tests` submodule. CI instead
+builds HDF5 from source as the top-level project and pulls this connector
+in as an `HDF5_VOL_ALLOW_EXTERNAL` subproject, the same mechanism HDF5's own
+CI uses to test other external VOL connectors (see `vol_async.yml`,
+`vol_cache.yml`, and `vol_rest.yml` in `HDFGroup/hdf5`'s
+`.github/workflows/`). HDF5's own `test/API`/`testpar/API` suite then
+registers this connector's ctest entries automatically.
 
 ## How it's wired
 
-`test/CMakeLists.txt` looks for the `h5_api_test` CMake target that HDF5's
-install exports. If it isn't found (HDF5 wasn't built with API tests), the
-"HDF5 API tests" section is skipped with a warning and the rest of the
-connector's test suite (`test/daos_vol`) is unaffected.
+CI configures HDF5 with:
 
-When found, one ctest entry is registered per API test interface
-(`h5_api_test_attribute`, `h5_api_test_dataset`, ...) plus one per extra
-native HDF5 test binary (`h5_api_ext_test_testhdf5`,
-`h5_api_test_parallel_t_bigio`, etc.), each invoking
-`test/driver/h5vl_test_driver.py`.
+```
+-DHDF5_VOL_ALLOW_EXTERNAL=LOCAL_DIR
+-DHDF5_VOL_PATH01=<path to this checkout>
+-DHDF5_VOL_VOL-DAOS_NAME=daos
+-DHDF5_VOL_VOL-DAOS_TEST_PARALLEL=ON
+```
 
-`h5vl_test_driver.py` is a small, dependency-free Python 3 script. For each
-test it starts the DAOS server and agent, runs `daos_pool.sh` to create a
-pool and capture its UUID, injects that UUID and the connector's
-environment variables (`HDF5_VOL_CONNECTOR`, `HDF5_PLUGIN_PATH`, etc.) into
-the test binary's environment, then runs the test and reports its exit
-code. It also scans all process output for known error substrings, since a
-hung or crashed DAOS server does not always propagate as a nonzero exit
-code from the test binary itself. Setting
-`HDF5_VOL_DAOS_TESTING_USE_SYSTEM_SERVER=ON` skips server/agent management
-and runs tests against an already-running DAOS instance instead.
+HDF5's `CMakeVOL.cmake` `add_subdirectory()`s this repo directly into its
+own build, auto-stripping this project's `find_package(HDF5 ...)` calls
+(they'd conflict with targets HDF5's own in-progress build is generating)
+and pre-setting `HDF5_FOUND`/`HDF5_LIBRARIES`/etc. for this project to
+consume instead. `test/API/CMakeLists.txt` then registers one
+`HDF5_VOL_vol-daos-h5_api_test_<iface>` ctest entry per API test interface,
+plus `HDF5_VOL_vol-daos-h5_api_ext_test_<name>` entries for this
+connector's own native tests (`test/daos_vol`'s `h5daos_test_*` binaries,
+exposed via the `HDF5_API_EXT_SERIAL_TESTS`/`HDF5_API_EXT_PARALLEL_TESTS`
+variables `test/daos_vol/CMakeLists.txt` sets).
+
+This project does not run its own test-orchestration driver. The DAOS
+server, agent, and pool are started once per CI job via plain shell steps
+(`ci.yml`), not per test -- the same pattern HDF5's own CI uses to start
+HSDS once for `vol-rest`. `test/CMakeLists.txt` still renders
+`daos_server.yml`/`daos_agent.sh`/`daos_pool.sh` from their `.in` templates
+via `configure_file()`; CI locates and runs them directly.
 
 ## Handling unsupported features
 
-Some HDF5 API test coverage exercises functionality this connector
-intentionally does not implement. These are excluded in two ways:
-
-- **Capability flags**: where the test suite checks
-  `H5VL_CAP_FLAG_*` before exercising a feature, no exclusion is needed --
-  the connector's capability query already tells the test to skip it.
-- **Subtest exclusion**: for gaps the test suite doesn't gate behind a
-  capability flag, `test/CMakeLists.txt` exposes
-  `HDF5_API_TEST_<iface>_EXCLUDES` and
-  `HDF5_API_TEST_EXTRA_<name>_EXCLUDES` cache variables, passed to the
-  driver as `-x <subtest>`. This only works against HDF5 develop's
-  AddTest-based test framework; HDF5 1.14.6's API tests only support
-  whole-interface selection.
-
-`HDF5_API_TEST_EXTRA_testphdf5_EXCLUDES` defaults to `h5oflusherror`: that
-subtest asserts that `H5Oflush` *fails*, documenting a native-VOL-only
-parallel metadata-cache limitation that does not apply to this connector.
+Where the test suite checks `H5VL_CAP_FLAG_*` before exercising a feature,
+no exclusion is needed -- the connector's capability query already tells
+the test to skip it. Gaps with no capability flag to gate on are excluded
+at the ctest level in `ci.yml` (see "Known gaps" below); HDF5's own driver
+mechanism for finer-grained per-subtest exclusion (`-x <subtest>`) is not
+used here since this project doesn't run through it.
 
 ## Known gaps
 
-The CI workflow (`.github/workflows/ci.yml`) excludes the following ctest
-entries as known, tracked connector gaps rather than regressions:
+`ci.yml`'s `ctest` invocation excludes the following as known, tracked
+connector gaps rather than regressions:
 
-- `h5_api_test_attribute` -- decreasing-order (`H5_ITER_DEC`) attribute
-  iteration is unsupported (`src/daos_vol_attr.c`).
-- `h5_api_ext_test_testhdf5` -- paginated attribute name/index resolution
-  bug, triggered once a group holds hundreds of attributes.
-- `h5_api_test_parallel_t_bigio` -- times out, likely due to DAOS
-  RAM-backed storage exhaustion from running many sequential DAOS
-  server/pool instances in one CI container.
+- `HDF5_VOL_vol-daos-h5_api_test_attribute` -- decreasing-order
+  (`H5_ITER_DEC`) attribute iteration is unsupported (`src/daos_vol_attr.c`).
+- `HDF5_VOL_vol-daos-h5_api_ext_test_testhdf5` -- paginated attribute
+  name/index resolution bug, only triggered once a group holds hundreds of
+  attributes.

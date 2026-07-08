@@ -97,59 +97,94 @@ jobs:
         # We run with no NVMe/bdev tier and nr_hugepages=0, but daos_server's
         # SPDK housekeeping still unconditionally tries to clean up hugepages
         # at engine start/stop and logs a scary (but harmless) "ERROR:" line
-        # when /dev/hugepages doesn't exist. h5vl_test_driver.py treats any
-        # "ERROR:" in server output as a hard test failure, so give it a
-        # real (empty) hugetlbfs mount instead of suppressing the message.
+        # when /dev/hugepages doesn't exist.
         run: |
           mkdir -p /dev/hugepages
           mount -t hugetlbfs none /dev/hugepages || true
 
-      - name: Checkout source
+      - name: Checkout vol-daos
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          path: vol-daos
 
-      - name: Resolve HDF5 ref commit
-        id: hdf5-sha
-        run: |
-          sha=$(git ls-remote https://github.com/HDFGroup/hdf5.git "refs/heads/${{ matrix.hdf5_ref }}" "refs/tags/${{ matrix.hdf5_ref }}" | cut -f1 | head -n1)
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-
-      - name: Cache HDF5 install
-        id: hdf5-cache
-        uses: actions/cache@v3
+      - name: Checkout HDF5 (${{ matrix.hdf5_ref }})
+        uses: actions/checkout@v3
         with:
-          path: ${{ github.workspace }}/hdf5-install
-          key: hdf5-rockylinux8-apitest-v1-${{ matrix.hdf5_ref }}-${{ steps.hdf5-sha.outputs.sha }}
+          repository: HDFGroup/hdf5
+          ref: ${{ matrix.hdf5_ref }}
+          path: hdf5
 
-      - name: Build and install HDF5 (${{ matrix.hdf5_ref }})
-        if: steps.hdf5-cache.outputs.cache-hit != 'true'
+      # Builds HDF5 as the top-level project with vol-daos pulled in as an
+      # HDF5_VOL_ALLOW_EXTERNAL=LOCAL_DIR subproject, matching how HDF5's own
+      # CI tests other external VOL connectors (vol_async.yml, vol_cache.yml,
+      # vol_rest.yml in HDFGroup/hdf5). HDF5's test/API/CMakeLists.txt
+      # registers ctest entries for vol-daos automatically via
+      # HDF5_EXTERNAL_VOL_TARGETS -- vol-daos does not need its own API-test
+      # CMake wiring. See docs/api-tests-migration.md.
+      - name: Configure HDF5 with vol-daos as an external VOL connector
         run: |
-          git clone --depth 1 --branch "${{ matrix.hdf5_ref }}" https://github.com/HDFGroup/hdf5.git hdf5-src
-          cmake -S hdf5-src -B hdf5-build \
+          cmake -S hdf5 -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/hdf5-install" \
             -DBUILD_SHARED_LIBS=ON \
             -DBUILD_TESTING=ON \
             -DHDF5_TEST_API=ON \
-            -DHDF5_TEST_API_INSTALL=ON \
             -DHDF5_ENABLE_PARALLEL=ON \
-            -DHDF5_ENABLE_MAP_API=ON
-          cmake --build hdf5-build -j"$(nproc)"
-          cmake --install hdf5-build
-
-      - name: Configure connector
-        run: |
-          cmake -S . -B build \
-            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/hdf5-install" \
-            -DBUILD_TESTING=ON \
+            -DHDF5_ENABLE_MAP_API=ON \
+            -DMPIEXEC_MAX_NUMPROCS=2 \
             -DHDF5_VOL_TEST_ENABLE_PARALLEL=ON \
-            -DMPIEXEC_MAX_NUMPROCS=2
+            -DHDF5_VOL_ALLOW_EXTERNAL=LOCAL_DIR \
+            -DHDF5_VOL_PATH01="${{ github.workspace }}/vol-daos" \
+            "-DHDF5_VOL_VOL-DAOS_NAME=daos" \
+            "-DHDF5_VOL_VOL-DAOS_TEST_PARALLEL=ON"
 
-      - name: Build connector
+      - name: Build HDF5 and vol-daos
         run: cmake --build build -j"$(nproc)"
 
+      - name: Start DAOS server/agent and create pool
+        # Started once for the whole job (not per test), matching how HDF5's
+        # own CI starts REST VOL's HSDS server: a plain background process
+        # outside CMake/ctest, not through HDF5's own C++ test-API driver.
+        run: |
+          daos_server_yml=$(find build -name daos_server.yml -print -quit)
+          daos_agent_sh=$(find build -name daos_agent.sh -print -quit)
+          daos_pool_sh=$(find build -name daos_pool.sh -print -quit)
+          echo "daos_server_yml=$daos_server_yml" >> "$GITHUB_ENV"
+          echo "daos_agent_sh=$daos_agent_sh" >> "$GITHUB_ENV"
+
+          mpiexec -n 1 -genv DAOS_DISABLE_REQ_FWD 1 \
+            daos_server start -o "$daos_server_yml" \
+            > daos_server.out 2>&1 &
+          for i in $(seq 1 60); do
+            grep -q "DAOS I/O Engine" daos_server.out && break
+            sleep 1
+          done
+          cat daos_server.out
+
+          "$daos_agent_sh" > daos_agent.out 2>&1 &
+          for i in $(seq 1 60); do
+            grep -q "listening on" daos_agent.out && break
+            sleep 1
+          done
+          cat daos_agent.out
+
+          "$daos_pool_sh" | tee daos_pool.out
+          pool_uuid=$(grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' daos_pool.out | head -n1)
+          if [ -z "$pool_uuid" ]; then
+            echo "::error::failed to create DAOS pool, no UUID found in daos_pool_sh output"
+            exit 1
+          fi
+          echo "DAOS_POOL=$pool_uuid" >> "$GITHUB_ENV"
+
       - name: Run tests
+        env:
+          D_LOG_FILE: ${{ github.workspace }}/daos_client.log
+          D_LOG_MASK: ERR
+          CRT_PHY_ADDR_STR: ofi+tcp
+          OFI_INTERFACE: lo
+          HDF5_VOL_CONNECTOR: daos
+          # Disable automatic chunk sizing for the API tests
+          HDF5_DAOS_CHUNK_TARGET_SIZE: "1073741824"
         # Excludes known, tracked connector gaps (not regressions) so CI
         # stays green on everything actually verified so far. See
         # docs/api-tests-migration.md for how these are tracked:
@@ -158,17 +193,27 @@ jobs:
         #   - h5_api_ext_test_testhdf5: paginated attribute name/index
         #     resolution bug, only triggered once a group holds hundreds of
         #     attributes.
-        #   - h5_api_test_parallel_t_bigio (timeout): likely DAOS RAM-backed
-        #     storage exhaustion from running many sequential DAOS
-        #     server/pool instances in one CI container.
-        run: >
-          ctest --test-dir build --output-on-failure --timeout 300
-          -E '^(h5_api_test_attribute|h5_api_ext_test_testhdf5|h5_api_test_parallel_t_bigio)$'
+        run: |
+          daos_agent_dir=$(dirname "$daos_agent_sh")
+          HDF5_PLUGIN_PATH="$(find build -name 'libhdf5_vol_daos*' -printf '%h\n' -quit)" \
+          DAOS_AGENT_DRPC_DIR="$daos_agent_dir" \
+          ctest --test-dir build --output-on-failure --timeout 300 \
+            -R 'HDF5_VOL_vol-daos' \
+            -E '^HDF5_VOL_vol-daos-h5_api_test_attribute$|^HDF5_VOL_vol-daos-h5_api_ext_test_testhdf5$'
+
+      - name: Stop DAOS server/agent
+        if: always()
+        run: |
+          killall -9 daos_server || true
+          killall daos_agent || true
 
       - name: Dump DAOS logs
         if: always()
         run: |
-          for f in $(find build/test -name '*.log' 2>/dev/null); do
+          for f in daos_server.out daos_agent.out daos_pool.out; do
+            [ -f "$f" ] && echo "=============== $f ===============" && cat "$f"
+          done
+          for f in $(find build -name '*.log' 2>/dev/null); do
             echo "=============== $f ==============="
             cat "$f"
           done
