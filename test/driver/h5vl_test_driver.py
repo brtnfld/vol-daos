@@ -189,7 +189,7 @@ def wait_for_line(proc, pattern, timeout, error_lines, print_output, collect=Non
     def on_line(line):
         nonlocal found
         if print_output:
-            print(line)
+            print(line, flush=True)
         if collect is not None:
             collect.append(line)
         if contains_error(line):
@@ -274,7 +274,7 @@ def run(args):
             init_proc = start_process([args["client_init"]] + args["client_init_args"], env)
             init_output = []
             wait_for_line(init_proc, pattern=None, timeout=args["timeout"],
-                          error_lines=error_lines, print_output=False, collect=init_output)
+                          error_lines=error_lines, print_output=True, collect=init_output)
             init_result = init_proc.wait()
             if init_result != 0:
                 print("driver: client-init failed", file=sys.stderr)
