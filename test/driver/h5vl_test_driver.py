@@ -247,6 +247,9 @@ def run(args):
     server_result = 0
 
     try:
+        if args["init_command"]:
+            subprocess.run(shlex.split(args["init_command"]), env=env, check=False)
+
         if args["server"]:
             server_argv = build_mpiexec_argv(
                 args, args["server"], args["server_args"], args["mpiexec_server_max_numprocs"],
@@ -265,9 +268,6 @@ def run(args):
                                   error_lines, print_output=True):
                 print("driver: client-helper did not start in time", file=sys.stderr)
                 return 1
-
-        if args["init_command"]:
-            subprocess.run(shlex.split(args["init_command"]), env=env, check=False)
 
         client_env = env
         if args["client_init"]:
