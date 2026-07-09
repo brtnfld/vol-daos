@@ -177,6 +177,14 @@ jobs:
           fi
           echo "DAOS_POOL=$pool_uuid" >> "$GITHUB_ENV"
 
+          # dmg reporting the pool created doesn't mean the client-side
+          # attach path (what H5_daos_init() uses, as opposed to dmg's own
+          # admin RPCs) is settled yet -- daos_control.log shows a transient
+          # "pool ... is locked" message right as the pool comes online, and
+          # the very first API tests run consistently fail with
+          # DER_AGENT_COMM while later, longer-running tests succeed.
+          sleep 15
+
       - name: Run tests
         env:
           D_LOG_MASK: ERR
