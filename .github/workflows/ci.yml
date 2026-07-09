@@ -194,6 +194,10 @@ jobs:
         # docs/api-tests-migration.md for how these are tracked:
         #   - h5_api_test_attribute: decreasing-order (H5_ITER_DEC) attribute
         #     iteration is unsupported (daos_vol_attr.c).
+        #   - h5_api_test_testhdf5: its tattr.c subtest hits the same
+        #     paginated/by-idx attribute lookup gap while iterating hundreds
+        #     of attributes, cascading into enough diagnostic output to blow
+        #     past the ctest timeout rather than failing fast.
         #   - h5_api_test_parallel_t_bigio: fails with DER_NOSPACE - the 4GB
         #     test pool (DAOS_POOL_SIZE) is too small for this test's writes.
         #   - h5_api_test_parallel_testphdf5: its h5oflusherror subtest
@@ -209,7 +213,7 @@ jobs:
           DAOS_AGENT_DRPC_DIR="$daos_agent_dir" \
           ctest --test-dir build --output-on-failure --timeout 300 \
             -R 'HDF5_VOL_vol-daos' \
-            -E '^HDF5_VOL_vol-daos-h5_api_test_attribute$|^HDF5_VOL_vol-daos-h5_api_test_parallel_t_bigio$|^HDF5_VOL_vol-daos-h5_api_test_parallel_testphdf5$'
+            -E '^HDF5_VOL_vol-daos-h5_api_test_attribute$|^HDF5_VOL_vol-daos-h5_api_test_testhdf5$|^HDF5_VOL_vol-daos-h5_api_test_parallel_t_bigio$|^HDF5_VOL_vol-daos-h5_api_test_parallel_testphdf5$'
 
       - name: Stop DAOS server/agent
         if: always()

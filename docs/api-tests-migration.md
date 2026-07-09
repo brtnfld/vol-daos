@@ -53,6 +53,12 @@ connector gaps rather than regressions:
 
 - `HDF5_VOL_vol-daos-h5_api_test_attribute` -- decreasing-order
   (`H5_ITER_DEC`) attribute iteration is unsupported (`src/daos_vol_attr.c`).
+- `HDF5_VOL_vol-daos-h5_api_test_testhdf5` -- its `tattr.c` subtest hits the
+  same by-idx/paginated attribute lookup gap while iterating hundreds of
+  attributes. Manifests non-deterministically: sometimes each lookup fails
+  fast and the binary finishes in ~20s, other times the cascading
+  diagnostic output from hundreds of failing lookups is enough to blow
+  past the ctest timeout instead.
 - `HDF5_VOL_vol-daos-h5_api_test_parallel_t_bigio` -- fails with
   `DER_NOSPACE`; the 4GB test pool (`DAOS_POOL_SIZE`) is too small for this
   test's writes.
