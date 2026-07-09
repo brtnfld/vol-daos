@@ -194,7 +194,9 @@ jobs:
         #     resolution bug, only triggered once a group holds hundreds of
         #     attributes.
         run: |
-          daos_agent_dir=$(dirname "$daos_agent_sh")
+          # daos_agent_sh lives in test/scripts/; the agent socket it starts
+          # lives one level up, in test/.
+          daos_agent_dir=$(dirname "$(dirname "$daos_agent_sh")")
           HDF5_PLUGIN_PATH="$(find build -name 'libhdf5_vol_daos*' -printf '%h\n' -quit)" \
           DAOS_AGENT_DRPC_DIR="$daos_agent_dir" \
           ctest --test-dir build --output-on-failure --timeout 300 \
