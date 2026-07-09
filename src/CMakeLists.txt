@@ -209,8 +209,13 @@ install(
 
 #-----------------------------------------------------------------------------
 # Export all exported targets to the build tree for use by parent project
+#
+# Skipped when built inline as an HDF5_VOL_ALLOW_EXTERNAL subproject: this
+# target links against HDF5's own hdf5-shared target, which isn't part of
+# any export set until HDF5 itself is installed, so export() can't resolve
+# it mid-build.
 #-----------------------------------------------------------------------------
-if(NOT HDF5_VOL_DAOS_EXTERNALLY_CONFIGURED)
+if(NOT HDF5_VOL_DAOS_EXTERNALLY_CONFIGURED AND NOT HDF5_VOL_ALLOW_EXTERNAL)
   export(
     TARGETS
       ${HDF5_VOL_DAOS_EXPORTED_LIBS}
