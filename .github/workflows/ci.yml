@@ -146,9 +146,13 @@ jobs:
         # own CI starts REST VOL's HSDS server: a plain background process
         # outside CMake/ctest, not through HDF5's own C++ test-API driver.
         run: |
-          daos_server_yml=$(find build -name daos_server.yml -print -quit)
-          daos_agent_sh=$(find build -name daos_agent.sh -print -quit)
-          daos_pool_sh=$(find build -name daos_pool.sh -print -quit)
+          # Absolute paths: ctest runs these tests with a per-connector
+          # WORKING_DIRECTORY (set by HDF5's own test/API/CMakeLists.txt),
+          # not the directory these paths are computed relative to here, so
+          # a relative path would resolve to the wrong location downstream.
+          daos_server_yml=$(realpath "$(find build -name daos_server.yml -print -quit)")
+          daos_agent_sh=$(realpath "$(find build -name daos_agent.sh -print -quit)")
+          daos_pool_sh=$(realpath "$(find build -name daos_pool.sh -print -quit)")
           echo "daos_server_yml=$daos_server_yml" >> "$GITHUB_ENV"
           echo "daos_agent_sh=$daos_agent_sh" >> "$GITHUB_ENV"
           echo "D_LOG_FILE=$(pwd)/daos_client.log" >> "$GITHUB_ENV"
@@ -177,14 +181,6 @@ jobs:
           fi
           echo "DAOS_POOL=$pool_uuid" >> "$GITHUB_ENV"
 
-          # dmg reporting the pool created doesn't mean the client-side
-          # attach path (what H5_daos_init() uses, as opposed to dmg's own
-          # admin RPCs) is settled yet -- daos_control.log shows a transient
-          # "pool ... is locked" message right as the pool comes online, and
-          # the very first API tests run consistently fail with
-          # DER_AGENT_COMM while later, longer-running tests succeed.
-          sleep 15
-
       - name: Run tests
         env:
           D_LOG_MASK: ERR
@@ -205,7 +201,7 @@ jobs:
           # daos_agent_sh lives in test/scripts/; the agent socket it starts
           # lives one level up, in test/.
           daos_agent_dir=$(dirname "$(dirname "$daos_agent_sh")")
-          HDF5_PLUGIN_PATH="$(find build -name 'libhdf5_vol_daos*' -printf '%h\n' -quit)" \
+          HDF5_PLUGIN_PATH="$(realpath "$(find build -name 'libhdf5_vol_daos*' -printf '%h\n' -quit)")" \
           DAOS_AGENT_DRPC_DIR="$daos_agent_dir" \
           ctest --test-dir build --output-on-failure --timeout 300 \
             -R 'HDF5_VOL_vol-daos' \
